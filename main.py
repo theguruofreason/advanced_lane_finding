@@ -9,8 +9,7 @@ objp[:,:2] = np.mgrid[0:9,0:6].T.reshape(-1,2)
 objpoints = []
 imgpoints = []
 
-def calibrate(fname):
-    img = cv2.imread(fname)
+def calibrate(img):
     gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 
     # find corners
@@ -26,7 +25,8 @@ calibration_images = glob.glob('./camera_cal/calibration*.jpg')
 
 # get corners in calibration images
 for fname in calibration_images:
-    calibrate(fname)
+    image = cv2.imread(fname)
+    calibrate(image)
 
 def undistort(img, objpoints, imgpoints):
     # Use cv2.calibrateCamera() and cv2.undistort()
@@ -37,5 +37,14 @@ def undistort(img, objpoints, imgpoints):
     undist = cv2.undistort(img, mtx, dist, None, mtx)
     return undist
 
-import sobelize as sobel
+test_images = glob.glob('./test_images/straight_lines*.jpg') + glob.glob('./test_images/test*.jpg')
+undistorted_images = []
 
+for fname in test_images:
+    image = cv2.imread(fname)
+    undistorted = undistort(image, objpoints, imgpoints)
+    undistorted_images.append(undistorted)
+    cv2.imwrite('./undistorted_test/' + fname.rsplit('/', 1)[-1], undistorted)
+    print('saved as ./undistorted_test/' + fname.rsplit('/', 1)[-1])
+
+cv2.imshow('test', undistorted_images[0])
