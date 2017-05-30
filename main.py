@@ -11,10 +11,8 @@ imgpoints = []
 
 def calibrate(img):
     gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-
     # find corners
     ret, corners = cv2.findChessboardCorners(gray, (9,6),None)
-
     # if found, add to our lists
     if ret == True:
         objpoints.append(objp)
@@ -38,13 +36,24 @@ def undistort(img, objpoints, imgpoints):
     return undist
 
 test_images = glob.glob('./test_images/straight_lines*.jpg') + glob.glob('./test_images/test*.jpg')
+image_names = []
+for i in test_images:
+    image_names.append(i.rsplit('\\', 1)[-1])
 undistorted_images = []
 
 for fname in test_images:
     image = cv2.imread(fname)
     undistorted = undistort(image, objpoints, imgpoints)
     undistorted_images.append(undistorted)
-    cv2.imwrite('./undistorted_test/' + fname.rsplit('/', 1)[-1], undistorted)
-    print('saved as ./undistorted_test/' + fname.rsplit('/', 1)[-1])
+    cv2.imwrite('./undistorted_test/' + fname.rsplit('\\', 1)[-1], undistorted)
+    print('saved as ./undistorted_test/' + fname.rsplit('\\', 1)[-1])
 
-cv2.imshow('test', undistorted_images[0])
+import perspective_transform as pt
+
+transformed = []
+
+for image in undistorted_images:
+    transformed.append(pt.perspective_transform(image, pt.src_points, pt.dst_points))
+
+for i in range(len((image_names))):
+    cv2.imwrite('./warped/' + image_names[i], transformed[i])
