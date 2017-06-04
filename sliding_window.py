@@ -3,16 +3,18 @@ import matplotlib.pyplot as plt
 import glob
 import cv2
 
+np.set_printoptions(threshold=np.nan)
+
 image_fnames = glob.glob('/thresholded/*')
 images = []
 for i in image_fnames:
     images.append(cv2.imread(i))
 
-warped = cv2.imread('./thresholded/straight_lines2.jpg')
+warped = cv2.imread('./thresholded/straight_lines2.jpg', 0)
 
 # window settings
 window_width = 40
-window_height = warped.shape[0] / 9 # Break image into 9 vertical layers since image height is 720
+window_height = warped.shape[0] / 9 # Break image into 9 vertical layers
 margin = 40 # How much to slide left and right for searching
 
 
@@ -51,11 +53,13 @@ def find_window_centroids(image, window_width, window_height, margin):
         offset = window_width / 2
         l_min_index = int(max(l_center + offset - margin, 0))
         l_max_index = int(min(l_center + offset + margin, warped.shape[1]))
-        l_center = np.argmax(conv_signal[l_min_index:l_max_index]) + l_min_index - offset
+        if conv_signal[l_min_index:l_max_index].any():
+            l_center = np.argmax(conv_signal[l_min_index:l_max_index]) + l_min_index - offset
         # Find the best right centroid by using past right center as a reference
         r_min_index = int(max(r_center + offset - margin, 0))
         r_max_index = int(min(r_center + offset + margin, warped.shape[1]))
-        r_center = np.argmax(conv_signal[r_min_index:r_max_index]) + r_min_index - offset
+        if conv_signal[r_min_index:r_max_index].any():
+            r_center = np.argmax(conv_signal[r_min_index:r_max_index]) + r_min_index - offset
         # Add what we found for that layer
         window_centroids.append((l_center, r_center))
 
@@ -92,75 +96,5 @@ if len(window_centroids) > 0:
 else:
     output = np.array(cv2.merge((warped, warped, warped)), np.uint8)
 
-
-'''def ll_scan(image, n_windows = 9, margin = 100, minpix = 20):
-    histogram = np.sum(image[image.shape[0]//2:,:], axis = 0)
-    output = np.dstack((image, image, image)) * 255
-    midpoint = np.int(histogram.shape[0]/2)
-    leftx_base = np.argmax(histogram[:midpoint])
-    rightx_base = np.argmax(histogram[midpoint:]) + midpoint
-
-    window_height = np.int(image.shape[0]/n_windows)
-    nonzero = image.nonzero()
-    nonzero_y = np.array(nonzero[0])
-    nonzero_x = np.array(nonzero[1])
-
-    leftx_current = leftx_base
-    rightx_current = rightx_base
-
-    left_lane_inds = []
-    right_lane_inds = []
-
-    for window in range(1):
-        win_y_low = image.shape[0] - (window+1) * window_height
-        win_y_high = image.shape[0] - window * window_height
-        win_xleft_low = leftx_current - margin
-        win_xleft_high = leftx_current + margin
-        win_xright_low = rightx_current - margin
-        win_xright_high = rightx_current + margin
-
-#        cv2.rectangle(output, (win_xleft_low, win_y_low), (win_xleft_high, win_y_high),(0,255,0), 2)
-#        cv2.rectangle(output,(win_xright_low,win_y_low),(win_xright_high,win_y_high),(0,255,0), 2)
-        # Identify the nonzero pixels in x and y within the window
-        good_left_inds = ((nonzero_y >= win_y_low) & (nonzero_y < win_y_high) & (nonzero_x >= win_xleft_low) & (nonzero_x < win_xleft_high)).nonzero()[0]
-        good_right_inds = ((nonzero_y >= win_y_low) & (nonzero_y < win_y_high) & (nonzero_x >= win_xright_low) & (nonzero_x < win_xright_high)).nonzero()[0]
-        # Append these indices to the lists
-        left_lane_inds.append(good_left_inds)
-        right_lane_inds.append(good_right_inds)
-        # If you found > minpix pixels, recenter next window on their mean position
-        if len(good_left_inds) > minpix:
-            leftx_current = np.int(np.mean(nonzero_x[good_left_inds]))
-        if len(good_right_inds) > minpix:
-            rightx_current = np.int(np.mean(nonzero_x[good_right_inds]))
-
-    # Concatenate the arrays of indices
-    left_lane_inds = np.concatenate(left_lane_inds)
-    right_lane_inds = np.concatenate(right_lane_inds)
-
-
-    # Extract left and right line pixel positions
-    leftx = nonzero_x[left_lane_inds]
-    lefty = nonzero_y[left_lane_inds]
-    rightx = nonzero_x[right_lane_inds]
-    righty = nonzero_y[right_lane_inds]
-
-    # Fit a second order polynomial to each
-    left_fit = np.polyfit(lefty, leftx, 2)
-    right_fit = np.polyfit(righty, rightx, 2)
-
-    # Generate x and y values for plotting
-    ploty = np.linspace(0, image.shape[0]-1, image.shape[0] )
-    left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
-    right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
-
-    output[nonzero_y[left_lane_inds], nonzero_x[left_lane_inds]] = [255, 0, 0]
-    output[nonzero_y[right_lane_inds], nonzero_x[right_lane_inds]] = [0, 0, 255]
-    plt.imshow(output)
-    plt.plot(left_fitx, ploty, color='yellow')
-    plt.plot(right_fitx, ploty, color='yellow')
-    plt.xlim(0, 1280)
-    plt.ylim(720, 0)
-
-quicktest = cv2.imread('./thresholded/straight_lines2.jpg')
-
-ll_scan(quicktest)'''
+cv2.imshow('test', output)
+cv2.waitKey(0)
