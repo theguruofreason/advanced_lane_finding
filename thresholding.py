@@ -46,12 +46,12 @@ thresholded_images = []
 
 for image in images:
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    r_thresh = r_threshold(image, 210, 255)
+    r_thresh = r_threshold(image, 120, 255)
     l_thresh = l_threshold(image, 215, 255)
     b_thresh = b_threshold(image, 144, 255)
-    s_thresh = s_threshold(image, 230, 255)
+    s_thresh = s_threshold(image, 120, 255)
     g_thresh = g_threshold(image, 215, 255)
     combined = np.zeros_like(image)
-    combined[(g_thresh == 1)] = 255
+    combined[(g_thresh == 1) | (l_thresh ==1) | (b_thresh == 1) | ((r_thresh == 1) & (s_thresh == 1))] = 255
     cv2.imshow('test', combined)
     cv2.waitKey(0)
