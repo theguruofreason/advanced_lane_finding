@@ -5,12 +5,13 @@ import cv2
 
 np.set_printoptions(threshold=np.nan)
 
-image_fnames = glob.glob('/thresholded/*')
+image_fnames = glob.glob('/warped/*')
 images = []
 for i in image_fnames:
     images.append(cv2.imread(i))
 
-warped = cv2.imread('./thresholded/test4.jpg', 0)
+warped = cv2.imread('./warped/test3.jpg', 0)
+print(len(warped[0]))
 nonzero = warped.nonzero()
 nonzeroy = np.array(nonzero[0])
 nonzerox = np.array(nonzero[1])
@@ -19,7 +20,7 @@ nonzerox = np.array(nonzero[1])
 window_width = 40
 window_height = warped.shape[0] / 9 # Break image into 9 vertical layers
 print('window height =', window_height)
-margin = 120 # How much to slide left and right for searching
+margin = 80 # How much to slide left and right for searching
 left_lane_inds = []
 right_lane_inds = []
 left_lane_cent_x = []
@@ -35,7 +36,7 @@ def window_mask(width, height, img_ref, center, level):
     return output
 
 
-def find_window_centroids(image, window_width, window_height, margin):
+def find_window_centroids(warped, window_width, window_height, margin):
     window_centroids = []  # Store the (left,right) window centroid positions per level
     window = np.ones(window_width)  # Create our window template that we will use for convolutions
 
@@ -53,6 +54,7 @@ def find_window_centroids(image, window_width, window_height, margin):
 
     # Go through each layer looking for max pixel locations
     for level in range(1, (int)(warped.shape[0] / window_height)):
+        print("level:",level, "left lane cent:", left_lane_cent_x)
         y_pos = warped.shape[0] - (level * window_height - .5 * window_height)
         # convolve the window into the vertical slice of the image
         image_layer = np.sum(
@@ -62,16 +64,20 @@ def find_window_centroids(image, window_width, window_height, margin):
         # Find the best left centroid by using past left center as a reference
         # Use window_width/2 as offset because convolution signal reference is at right side of window, not center of window
         offset = window_width / 2
-        l_min_index = int(max(l_center + offset - margin, 0))
-        l_max_index = int(min(l_center + offset + margin, warped.shape[1]))
+        l_min_index = int(max(l_center - offset - margin, 0))
+        l_max_index = int(min(l_center - offset + margin, warped.shape[1]))
         if conv_signal[l_min_index:l_max_index].any():
             l_center = np.argmax(conv_signal[l_min_index:l_max_index]) + l_min_index - offset
+        elif len(left_lane_cent_x) > 1:
+            l_center = left_lane_cent_x[level - 2] - left_lane_cent_x[level - 3] + l_center
         print('left:', l_center, y_pos)
         # Find the best right centroid by using past right center as a reference
         r_min_index = int(max(r_center + offset - margin, 0))
         r_max_index = int(min(r_center + offset + margin, warped.shape[1]))
         if conv_signal[r_min_index:r_max_index].any():
             r_center = np.argmax(conv_signal[r_min_index:r_max_index]) + r_min_index - offset
+        elif len(right_lane_cent_x) > 1:
+            r_center = right_lane_cent_x[level - 2] - right_lane_cent_x[level - 3] + r_center
         print('right:', r_center, y_pos)
         # Add what we found for that layer
         left_lane_cent_x.append(l_center)
@@ -95,15 +101,6 @@ if len(window_centroids) > 0:
     l_points = np.zeros_like(warped)
     r_points = np.zeros_like(warped)
 
-    # Go through each level and draw the windows
-    for level in range(0, len(window_centroids)):
-        # Window_mask is a function to draw window areas
-        l_mask = window_mask(window_width, window_height, warped, window_centroids[level][0], level)
-        r_mask = window_mask(window_width, window_height, warped, window_centroids[level][1], level)
-        # Add graphic points from window mask here to total pixels found
-        l_points[(l_points == 255) | ((l_mask == 1))] = 255
-        r_points[(r_points == 255) | ((r_mask == 1))] = 255
-
     # Draw the results
     template = np.array(r_points + l_points, np.uint8)  # add both left and right window pixels together
     zero_channel = np.zeros_like(template)  # create a zero color channel
@@ -119,8 +116,8 @@ else:
 
 # plot the fitted polynomials
 ploty = np.linspace(0, warped.shape[0]-1, warped.shape[0] )
-left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2]
-right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2]
+left_fitx = left_fit[0]*ploty**2 + left_fit[1]*ploty + left_fit[2] - window_width / 2
+right_fitx = right_fit[0]*ploty**2 + right_fit[1]*ploty + right_fit[2] - window_width / 2
 
 # make blank like warped for drawing
 warped_zeros = np.zeros_like(warped).astype(np.uint8)
