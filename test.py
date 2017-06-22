@@ -2,50 +2,48 @@ import numpy as np
 import cv2
 import glob
 import matplotlib.pyplot as plt
+from main import undistort, threshold, perspective_transform, src_points, dst_points, draw_lane
+from moviepy.editor import VideoFileClip
 
+project_video_output = './output_images/project_video_output.mp4'
+clip1 = VideoFileClip('project_video.mp4')
+
+# first lets calibrate our camera using the chessboard images
 objp = np.zeros((6*9,3), np.float32)
 objp[:,:2] = np.mgrid[0:9,0:6].T.reshape(-1,2)
 
 objpoints = []
 imgpoints = []
 
-# grab images to calibrate
-images = glob.glob('./camera_cal/calibration*.jpg')
-num_image = 1
-
-# get corners in calibration images
-for fname in images:
-    img = cv2.imread(fname)
+def calibrate(img):
     gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-
     # find corners
     ret, corners = cv2.findChessboardCorners(gray, (9,6),None)
-
     # if found, add to our lists
     if ret == True:
         objpoints.append(objp)
         imgpoints.append(corners)
 
-    img = cv2.drawChessboardCorners(img, (9, 6), corners, ret)
-    cv2.imwrite('./calibrated/calibrated' + str(num_image) + '.jpg', img)
-    num_image +=1
+# grab images to calibrate
+calibration_images = glob.glob('./camera_cal/calibration*.jpg')
 
-num_image = 1
+# get corners in calibration images
+for fname in calibration_images:
+    image = cv2.imread(fname)
+    calibrate(image)
 
-for fname in images:
-    img = cv2.imread(fname)
+image = VideoFileClip.get_frame(clip1, 39.8)
+cv2.imwrite('./test_frame.png', image)
 
-    def cal_undistort(img, objpoints, imgpoints):
-        # Use cv2.calibrateCamera() and cv2.undistort()
-        gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-        ret, corners = cv2.findChessboardCorners(gray, (8,6), None)
-        img = cv2.drawChessboardCorners(img, (8,6), corners, ret)
-        ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
-        undist = cv2.undistort(img, mtx, dist, None, mtx)
-        return undist
+null_array = np.array([])
 
-    undistorted = cal_undistort(img, objpoints, imgpoints)
+undistorted = undistort(image, objpoints, imgpoints)
+thresholded = threshold(undistorted)
+transformed = perspective_transform(thresholded, src_points, dst_points)
+lane, _, _, _, _ = draw_lane(transformed, null_array, null_array, null_array, 0)
+composed = cv2.addWeighted(image, 1, lane, .5, 1)
 
-    cv2.imwrite('./undistorted/undistorted' + str(num_image) + '.jpg', undistorted)
-    num_image +=1
-
+cv2.imshow('thresholded', thresholded)
+cv2.imshow('transformed', transformed)
+cv2.imshow('composed', composed)
+cv2.waitKey(0)

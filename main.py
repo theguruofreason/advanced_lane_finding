@@ -82,20 +82,32 @@ thresholded_images = []
 
 for image in undistorted_images:
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    l_thresh = l_threshold(image, 220, 255)
+    l_thresh = l_threshold(image, 190, 255)
     b_thresh = b_threshold(image, 144, 255)
-    g_thresh = g_threshold(image, 215, 255)
+    g_thresh = g_threshold(image, 190, 255)
     combined = np.zeros_like(image)
     combined[(l_thresh == 1) | (b_thresh == 1) | (g_thresh == 1)] = 255
     thresholded_images.append(combined)
 
+def threshold(image):
+#    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    l_thresh = l_threshold(image, 210, 255)
+    b_thresh = b_threshold(image, 144, 255)
+    g_thresh = g_threshold(image, 210, 255)
+    combined = np.zeros_like(image)
+    combined[(l_thresh == 1) | (b_thresh == 1) | (g_thresh == 1)] = 252
+    ret, combined = cv2.threshold(combined, 250, 255, cv2.THRESH_BINARY)
+    return combined
+
+# save the thresholded test images
 for index, image in enumerate(thresholded_images):
     cv2.imwrite('./thresholded/' + test_image_names[index], image)
+
 
 # Perspective Transform ---
 #   from code determined in perspective_transform.py
 src_points = np.float32([[246, 693],[585, 458], [698, 458], [1061, 693]])
-dst_points = np.float32([[250, 650], [250, 100], [930, 100], [930, 650]])
+dst_points = np.float32([[250, 720], [250, 100], [930, 100], [930, 720]])
 
 M = None
 
@@ -105,48 +117,60 @@ def perspective_transform(img, src_points, dst_points):
     transformed = cv2.warpPerspective(img, M, img_size, flags=cv2.INTER_LINEAR)
     return transformed
 
+
 transformed_images = []
 
+# apply perspective transform to thresholded test images
 for image in thresholded_images:
     transformed_images.append(perspective_transform(image, src_points, dst_points))
 
+# save 'warped' images
 for i in range(len((test_image_names))):
     cv2.imwrite('./warped/' + test_image_names[i], transformed_images[i])
 
-margin = 80 # How much to slide left and right for searching
+
+margin = 100 # How much to slide left and right for searching
 window_width = 40
 
+# create a window mask for convolution
 def window_mask(width, height, img_ref, center, level):
     output = np.zeros_like(img_ref)
     output[int(img_ref.shape[0] - (level + 1) * height):int(img_ref.shape[0] - level * height),
     max(0, int(center - width / 2)):min(int(center + width / 2), img_ref.shape[1])] = 1
     return output
 
-def find_window_centroids(warped, window_width, window_height, margin):
-    plt.imshow(warped)
-    window_centroids = []  # Store the (left,right) window centroid positions per level
+
+def find_window_centroids(warped, window_width, window_height, margin, previous_centroids):
+    current_centroids = []  # Store the (left,right) window centroid positions per level
     window = np.ones(window_width)  # Create our window template that we will use for convolutions
 
+    # create nonzero masks in both dimensions
+    nonzero = warped.nonzero()
+    nonzero_y = np.array(nonzero[0])
+    nonzero_x = np.array(nonzero[1])
+
     left_lane_cent_x = []
-    left_lane_cent_y = []
     right_lane_cent_x = []
-    right_lane_cent_y = []
+    left_lane_inds = []
+    right_lane_inds = []
 
-    # First find the two starting positions for the left and right lane by using np.sum to get the vertical image slice
-    # and then np.convolve the vertical image slice with the window template
+    # First find the two starting positions (unless known from previous frame) for the left and right lane by using
+    # np.sum to get the vertical image slice and then np.convolve the vertical image slice with the window template
+    if previous_centroids:
+        l_center = previous_centroids[0][0]
+        r_center = previous_centroids[0][1]
+    else:
+        # Sum quarter bottom of image to get slice, could use a different ratio
+        l_sum = np.sum(warped[int(3 * warped.shape[0] / 4):, :int(warped.shape[1] / 2)], axis=0)
+        l_center = np.argmax(np.convolve(window, l_sum)) - window_width / 2
+        r_sum = np.sum(warped[int(3 * warped.shape[0] / 4):, int(warped.shape[1] / 2):], axis=0)
+        r_center = np.argmax(np.convolve(window, r_sum)) - window_width / 2 + int(warped.shape[1] / 2)
 
-    # Sum quarter bottom of image to get slice, could use a different ratio
-    l_sum = np.sum(warped[int(3 * warped.shape[0] / 4):, :int(warped.shape[1] / 2)], axis=0)
-    l_center = np.argmax(np.convolve(window, l_sum)) - window_width / 2
-    r_sum = np.sum(warped[int(3 * warped.shape[0] / 4):, int(warped.shape[1] / 2):], axis=0)
-    r_center = np.argmax(np.convolve(window, r_sum)) - window_width / 2 + int(warped.shape[1] / 2)
-
-    # Add what we found for the first layer
-    window_centroids.append((l_center, r_center))
+        # Add what we found for the first layer
+        current_centroids.append((l_center, r_center))
 
     # Go through each layer looking for max pixel locations
     for level in range(1, (int)(warped.shape[0] / window_height)):
-        print("level:",level, "left lane cent:", left_lane_cent_x)
         y_pos = warped.shape[0] - (level * window_height - .5 * window_height)
         # convolve the window into the vertical slice of the image
         image_layer = np.sum(
@@ -160,50 +184,94 @@ def find_window_centroids(warped, window_width, window_height, margin):
         l_max_index = int(min(l_center - offset + margin, warped.shape[1]))
         if conv_signal[l_min_index:l_max_index].any():
             l_center = np.argmax(conv_signal[l_min_index:l_max_index]) + l_min_index - offset
+        # if none found, repeat linear trend from last 2 windows
         elif len(left_lane_cent_x) > 1:
             l_center = left_lane_cent_x[level - 2] - left_lane_cent_x[level - 3] + l_center
-        print('left:', l_center, y_pos)
         # Find the best right centroid by using past right center as a reference
         r_min_index = int(max(r_center + offset - margin, 0))
         r_max_index = int(min(r_center + offset + margin, warped.shape[1]))
         if conv_signal[r_min_index:r_max_index].any():
             r_center = np.argmax(conv_signal[r_min_index:r_max_index]) + r_min_index - offset
+        # if none found, repeat linear trend from last 2 windows
         elif len(right_lane_cent_x) > 1:
             r_center = right_lane_cent_x[level - 2] - right_lane_cent_x[level - 3] + r_center
-        print('right:', r_center, y_pos)
         # Add what we found for that layer
-        left_lane_cent_x.append(l_center)
-        left_lane_cent_y.append(y_pos)
-        right_lane_cent_x.append(r_center)
-        right_lane_cent_y.append(y_pos)
-        window_centroids.append((l_center, r_center))
+        win_y_low = y_pos - (.5 * window_height)
+        win_y_high = y_pos + (.5 * window_height)
+        win_xleft_low = l_center - margin
+        win_xleft_high = l_center + margin
+        win_xright_low = r_center - margin
+        win_xright_high = r_center + margin
+        good_left_inds = ((nonzero_y >= win_y_low) & (nonzero_y < win_y_high) & (nonzero_x >= win_xleft_low) & (
+        nonzero_x < win_xleft_high)).nonzero()[0]
+        good_right_inds = ((nonzero_y >= win_y_low) & (nonzero_y < win_y_high) & (nonzero_x >= win_xright_low) & (
+        nonzero_x < win_xright_high)).nonzero()[0]
+        left_lane_inds.append(good_left_inds)
+        right_lane_inds.append(good_right_inds)
+        current_centroids.append((l_center, r_center))
 
-    return window_centroids, left_lane_cent_x, left_lane_cent_y, right_lane_cent_x, right_lane_cent_y
+    left_lane_inds = np.concatenate(left_lane_inds)
+    right_lane_inds = np.concatenate(right_lane_inds)
 
-def draw_lane(image):
+    left_x = nonzero_x[left_lane_inds]
+    left_y = nonzero_y[left_lane_inds]
+    right_x = nonzero_x[right_lane_inds]
+    right_y = nonzero_y[right_lane_inds]
+
+    return current_centroids, left_x, left_y, right_x, right_y
+
+
+def draw_lane(image, previous_centroids, previous_left_fit, previous_right_fit, frames_to_average):
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     # window settings
     window_height = image.shape[0] / 9  # Break image into 9 vertical layers
 
-    window_centroids, left_cent_x, left_cent_y, right_cent_x, right_cent_y = find_window_centroids(image, window_width, window_height, margin)
+    window_centroids, left_x, left_y, right_x, right_y = find_window_centroids(image, window_width, window_height, margin, previous_centroids)
+#    print(previous_right_fit, previous_left_fit)
 
     # If we found any window centers
     if len(window_centroids) > 0:
-        left_fit = np.polyfit(left_cent_y, left_cent_x, 2)
-        right_fit = np.polyfit(right_cent_y, right_cent_x, 2)
-    # If no window centers found, just display orginal road image
+        left_fit = np.polyfit(left_y, left_x, 2)
+        if previous_left_fit.any():
+            for i in [0, 1, 2]:
+                left_fit[i] = (left_fit[i] + previous_left_fit[i] * frames_to_average) / (1 + frames_to_average)
+        right_fit = np.polyfit(right_y, right_x, 2)
+        if previous_right_fit.any():
+            for i in [0, 1, 2]:
+                right_fit[i] = (right_fit[i] + previous_right_fit[i] * frames_to_average) / (1 + frames_to_average)
+    # If no window centers found, just display original road image
     else:
         output = np.array(cv2.merge((image, image, image)), np.uint8)
 
     # plot the fitted polynomials
     ploty = np.linspace(0, image.shape[0] - 1, image.shape[0])
+    left_a, left_b, left_c = left_fit[0], left_fit[1], left_fit[2]
+    right_a, right_b, right_c = right_fit[0], right_fit[1], right_fit[2]
+    a, b, c = (left_a + right_a) / 2, (left_b + right_b) / 2, (left_c + right_c) / 2
     left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
     right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
+
+    y_val = np.max(ploty)
+
+    # define conversions in x and y from pixels
+    ym_per_pix = 31 / 720 # meters per pixel in y dimension
+    xm_per_pix = 3.7 / 710 # meters per pixel in x dimension
+
+    # fit new polynomials to x, y in word space
+    left_fit_cr = np.polyfit(left_y * ym_per_pix, left_x * xm_per_pix, 2)
+    right_fit_cr = np.polyfit(right_y * ym_per_pix, right_x * xm_per_pix, 2)
+    # Calculate the new radii of curvature
+    left_curverad = ((1 + (2 * left_fit_cr[0] * y_val * ym_per_pix + left_fit_cr[1]) ** 2) ** 1.5) / np.absolute(2 * left_fit_cr[0])
+    right_curverad = ((1 + (2 * right_fit_cr[0] * y_val * ym_per_pix + right_fit_cr[1]) ** 2) ** 1.5) / np.absolute(2 * right_fit_cr[0])
+    # Now our radius of curvature is in meters
+    print('left curve radius:', left_curverad, 'm\nright curve radius:', right_curverad, 'm')
+    avg_curve_rad = int((left_curverad + right_curverad) / 2)
 
     # make blank like image for drawing
     image_zeros = np.zeros_like(image).astype(np.uint8)
     rgb_warped_zeros = np.dstack((image_zeros, image_zeros, image_zeros))
 
-    # make centroids usable by cv2
+    # make points usable by cv2
     left_fit_points = np.array([np.transpose(np.vstack([left_fitx, ploty]))])
     right_fit_points = np.array([np.flipud(np.transpose(np.vstack([right_fitx, ploty])))])
     points = np.hstack((left_fit_points, right_fit_points))
@@ -211,13 +279,14 @@ def draw_lane(image):
     # draw the lane
     cv2.fillPoly(rgb_warped_zeros, np.int32([points]), (0, 255, 0))
     rgb_warped_zeros = perspective_transform(rgb_warped_zeros, dst_points, src_points)
-    return rgb_warped_zeros
+    cv2.putText(rgb_warped_zeros, 'radius of curvature:' + str(avg_curve_rad) + 'm', (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+    return rgb_warped_zeros, window_centroids, left_fit, right_fit, avg_curve_rad
 
 warped = []
 original = []
 
 for i in range(len((test_image_names))):
-    warped.append(cv2.imread('./warped/' + test_image_names[i], 0))
+    warped.append(cv2.imread('./warped/' + test_image_names[i]))
     original.append(cv2.imread('./test_images/' + test_image_names[i]))
 
 for i, image in enumerate(warped):
@@ -225,3 +294,55 @@ for i, image in enumerate(warped):
     composed = cv2.addWeighted(original[i], 1, lane, .5, 1)
     cv2.imwrite('./composed/' + test_image_names[i], composed)
 
+
+
+def process_image(image):
+    undistorted = undistort(image, objpoints, imgpoints)
+    thresholded = threshold(undistorted)
+    transformed = perspective_transform(thresholded, src_points, dst_points)
+    lane, current_centroids = draw_lane(transformed, frame_centroids)
+    composed = cv2.addWeighted(image, 1, lane, .5, 1)
+    return composed
+
+
+class MyVideoProcessor(object):
+    def __init__(self):
+        self.last_centroids = []
+        self.past_frames_left = []
+        self.past_frames_right = []
+
+        self.best_fit_left = np.asarray([])
+        self.best_fit_right = np.asarray([])
+        self.running_average = 3
+
+    def pipeline_function(self, frame):
+        # your lane detection pipeline
+        undistorted = undistort(frame, objpoints, imgpoints)
+        thresholded = threshold(undistorted)
+        transformed = perspective_transform(thresholded, src_points, dst_points)
+        lane, self.last_centroids, self.best_fit_left, self.best_fit_right, curve_rad = draw_lane(transformed, self.last_centroids, self.best_fit_left, self.best_fit_right, self.running_average)
+        composed = cv2.addWeighted(frame, 1, lane, .5, 1)
+        return composed
+
+video_processor_1, video_processor_2, video_processor_3 = MyVideoProcessor(), MyVideoProcessor(), MyVideoProcessor()
+
+from moviepy.editor import VideoFileClip
+
+
+project_video_output = './output_images/project_video_output.mp4'
+clip1 = VideoFileClip('project_video.mp4')
+pv_clip = clip1.fl_image(video_processor_1.pipeline_function)
+pv_clip.write_videofile(project_video_output, audio=False)
+
+'''
+project_video_output = './output_images/challenge_video_output.mp4'
+clip1 = VideoFileClip('challenge_video.mp4')
+pv_clip = clip1.fl_image(video_processor_2.pipeline_function)
+pv_clip.write_videofile(project_video_output, audio=False)
+
+
+project_video_output = './output_images/harder_challenge_video_output.mp4'
+clip1 = VideoFileClip('harder_challenge_video.mp4')
+pv_clip = clip1.fl_image(video_processor_3.pipeline_function)
+pv_clip.write_videofile(project_video_output, audio=False)
+'''
