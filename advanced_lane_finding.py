@@ -78,8 +78,6 @@ def g_threshold(image, min, max):
     binary[(gray >= min) & (gray <= max)] = 1
     return binary
 
-thresholded_images = []
-
 def threshold(image):
 #    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     l_thresh = l_threshold(image, 210, 255)
@@ -89,6 +87,8 @@ def threshold(image):
     combined[(l_thresh == 1) | (b_thresh == 1) | (g_thresh == 1)] = 252
     ret, combined = cv2.threshold(combined, 250, 255, cv2.THRESH_BINARY)
     return combined
+
+thresholded_images = []
 	
 for image in undistorted_images:
 	thresholded_images.append(threshold(image))
@@ -248,7 +248,7 @@ def draw_lane(image, previous_centroids, previous_left_fit, previous_right_fit, 
     y_val = np.max(ploty)
 
     # define conversions in x and y from pixels
-    ym_per_pix = 31 / 720 # meters per pixel in y dimension
+    ym_per_pix = 31 / 620 # meters per pixel in y dimension
     xm_per_pix = 3.7 / 710 # meters per pixel in x dimension
 
     # fit new polynomials to x, y in word space
