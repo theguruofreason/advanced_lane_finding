@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 import glob
 import matplotlib.pyplot as plt
-from main import undistort, threshold, perspective_transform, src_points, dst_points, draw_lane
+from advanced_lane_finding import undistort, threshold, perspective_transform, src_points, dst_points, draw_lane
 from moviepy.editor import VideoFileClip
 
 project_video_output = './output_images/project_video_output.mp4'

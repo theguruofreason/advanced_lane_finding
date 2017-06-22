@@ -295,16 +295,6 @@ for i, image in enumerate(warped):
     cv2.imwrite('./composed/' + test_image_names[i], composed)
 
 
-
-def process_image(image):
-    undistorted = undistort(image, objpoints, imgpoints)
-    thresholded = threshold(undistorted)
-    transformed = perspective_transform(thresholded, src_points, dst_points)
-    lane, current_centroids = draw_lane(transformed, frame_centroids)
-    composed = cv2.addWeighted(image, 1, lane, .5, 1)
-    return composed
-
-
 class MyVideoProcessor(object):
     def __init__(self):
         self.last_centroids = []
