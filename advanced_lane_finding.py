@@ -80,15 +80,6 @@ def g_threshold(image, min, max):
 
 thresholded_images = []
 
-for image in undistorted_images:
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    l_thresh = l_threshold(image, 190, 255)
-    b_thresh = b_threshold(image, 144, 255)
-    g_thresh = g_threshold(image, 190, 255)
-    combined = np.zeros_like(image)
-    combined[(l_thresh == 1) | (b_thresh == 1) | (g_thresh == 1)] = 255
-    thresholded_images.append(combined)
-
 def threshold(image):
 #    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     l_thresh = l_threshold(image, 210, 255)
@@ -98,6 +89,9 @@ def threshold(image):
     combined[(l_thresh == 1) | (b_thresh == 1) | (g_thresh == 1)] = 252
     ret, combined = cv2.threshold(combined, 250, 255, cv2.THRESH_BINARY)
     return combined
+	
+for image in undistorted_images:
+	thresholded_images.append(threshold(image))
 
 # save the thresholded test images
 for index, image in enumerate(thresholded_images):
