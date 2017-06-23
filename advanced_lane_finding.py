@@ -91,7 +91,7 @@ def g_threshold(image, min, max):
     return binary
 
 def threshold(image):
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+#    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     l_thresh = l_threshold(image, 200, 255)
     b_thresh = b_threshold(image, 144, 255)
     g_thresh = g_threshold(image, 200, 255)
@@ -102,6 +102,7 @@ def threshold(image):
     ret, combined = cv2.threshold(combined, 250, 255, cv2.THRESH_BINARY)
     return combined
 
+'''
 thresholded_images = []
 	
 for image in undistorted_images:
@@ -110,12 +111,13 @@ for image in undistorted_images:
 # save the thresholded test images
 for index, image in enumerate(thresholded_images):
     cv2.imwrite('./thresholded/' + test_image_names[index], image)
-
+'''
 
 # Perspective Transform ---
 #   from code determined in perspective_transform.py
 src_points = np.float32([[246, 693],[585, 458], [698, 458], [1061, 693]])
 dst_points = np.float32([[250, 720], [250, 100], [930, 100], [930, 720]])
+
 
 M = None
 
@@ -125,7 +127,7 @@ def perspective_transform(img, src_points, dst_points):
     transformed = cv2.warpPerspective(img, M, img_size, flags=cv2.INTER_LINEAR)
     return transformed
 
-
+'''
 transformed_images = []
 
 # apply perspective transform to thresholded test images
@@ -135,7 +137,7 @@ for image in thresholded_images:
 # save 'warped' images
 for i in range(len((test_image_names))):
     cv2.imwrite('./warped/' + test_image_names[i], transformed_images[i])
-
+'''
 
 margin = 100 # How much to slide left and right for searching
 window_width = 40
@@ -270,8 +272,8 @@ def draw_lane(image, previous_centroids, previous_left_fit, previous_right_fit, 
     left_fit_cr = np.polyfit(left_y * ym_per_pix, left_x * xm_per_pix, 2)
     right_fit_cr = np.polyfit(right_y * ym_per_pix, right_x * xm_per_pix, 2)
     # Calculate the new radii of curvature
-    left_curverad = ((1 + (2 * left_fit_cr[0] * y_val * ym_per_pix + left_fit_cr[1]) ** 2) ** 1.5) / np.absolute(2 * left_fit_cr[0])
-    right_curverad = ((1 + (2 * right_fit_cr[0] * y_val * ym_per_pix + right_fit_cr[1]) ** 2) ** 1.5) / np.absolute(2 * right_fit_cr[0])
+    left_curverad = int(((1 + (2 * left_fit_cr[0] * y_val * ym_per_pix + left_fit_cr[1]) ** 2) ** 1.5) / np.absolute(2 * left_fit_cr[0]))
+    right_curverad = int(((1 + (2 * right_fit_cr[0] * y_val * ym_per_pix + right_fit_cr[1]) ** 2) ** 1.5) / np.absolute(2 * right_fit_cr[0]))
     # Now our radius of curvature is in meters
     print('left curve radius:', left_curverad, 'm\nright curve radius:', right_curverad, 'm')
     avg_curve_rad = int((left_curverad + right_curverad) / 2)
@@ -294,6 +296,7 @@ def draw_lane(image, previous_centroids, previous_left_fit, previous_right_fit, 
 warped = []
 original = []
 
+'''
 for i in range(len((test_image_names))):
     warped.append(cv2.imread('./warped/' + test_image_names[i]))
     original.append(cv2.imread('./test_images/' + test_image_names[i]))
@@ -304,7 +307,7 @@ for i, image in enumerate(warped):
     lane, _, _, _, _ = draw_lane(image, null_array, null_array, null_array, 0)
     composed = cv2.addWeighted(original[i], 1, lane, .5, 1)
     cv2.imwrite('./composed/' + test_image_names[i], composed)
-
+'''
 
 class MyVideoProcessor(object):
     def __init__(self):
@@ -329,13 +332,13 @@ video_processor_1, video_processor_2, video_processor_3 = MyVideoProcessor(), My
 
 from moviepy.editor import VideoFileClip
 
-'''
+
 project_video_output = './output_images/project_video_output.mp4'
 clip1 = VideoFileClip('project_video.mp4')
 pv_clip = clip1.fl_image(video_processor_1.pipeline_function)
 pv_clip.write_videofile(project_video_output, audio=False)
 
-
+'''
 project_video_output = './output_images/challenge_video_output.mp4'
 clip1 = VideoFileClip('challenge_video.mp4')
 pv_clip = clip1.fl_image(video_processor_2.pipeline_function)
