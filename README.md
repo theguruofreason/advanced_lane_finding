@@ -211,7 +211,7 @@ The toughest of the test images was test4.jpg due to the shadows and changing co
 
 I used a object design for my video pipeline in order to easily track data across frames (lines 312-329). This way I was able to track previous starting centroids (at the bottom of the screen) as well as variable terms of the polynomial used to fit the curves. I decided to compute a running average of the polynomial terms for 3 frames. The results can be seen in the video [here](./output_images/project_video_output):
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/R_FcAb1cqoY" frameborder="0" allowfullscreen></iframe>
+[![IMAGE ALT TEXT](http://img.youtube.com/vi/R_FcAb1cqoY/0.jpg)](http://www.youtube.com/watch?v=R_FcAb1cqoY "Advanced Lane Finding")
 <br>
 
 ---
