@@ -177,6 +177,16 @@ avg_curve_rad = int((left_curverad + right_curverad) / 2)
 
 This radius of curvature is drawn as well formatted text onto the lane fill layer by the line 277. Later this layer is overlayed on the original image as previously explained.
 
+For the amount the car is offcenter, I took the x position of the bottom 2 centroids and averaged them (line 282). I then subtracted that value from the center of the camera feed, assuming the camera is mounted in the center of the car, and again multiplied by my pixel to meter conversion ratio (line 283).
+
+```python
+average_bottom_centroid_x = (window_centroids[0][0] + window_centroids[0][1]) / 2
+lane_position = ((image.shape[1] / 2) - average_bottom_centroid_x) * xm_per_pix
+```
+This is also written onto the same layer as the lane and radius of curvature outputs, to be later merged with the original image (line 298)
+
+---
+
 ### Results
 
 The entire pipeline takes a distorted, unthresholded image of the road and returns the same image with the lane clearly highlighted in green, as well as a report of the instantaneous radius of curvature in white text.

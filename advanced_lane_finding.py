@@ -102,7 +102,7 @@ def threshold(image):
     ret, combined = cv2.threshold(combined, 250, 255, cv2.THRESH_BINARY)
     return combined
 
-'''
+
 thresholded_images = []
 	
 for image in undistorted_images:
@@ -111,7 +111,7 @@ for image in undistorted_images:
 # save the thresholded test images
 for index, image in enumerate(thresholded_images):
     cv2.imwrite('./thresholded/' + test_image_names[index], image)
-'''
+
 
 # Perspective Transform ---
 #   from code determined in perspective_transform.py
@@ -278,6 +278,10 @@ def draw_lane(image, previous_centroids, previous_left_fit, previous_right_fit, 
     print('left curve radius:', left_curverad, 'm\nright curve radius:', right_curverad, 'm')
     avg_curve_rad = int((left_curverad + right_curverad) / 2)
 
+    # determine lane position
+    average_bottom_centroid_x = (window_centroids[0][0] + window_centroids[0][1]) / 2
+    lane_position = ((image.shape[1] / 2) - average_bottom_centroid_x) * xm_per_pix
+
     # make blank like image for drawing
     image_zeros = np.zeros_like(image).astype(np.uint8)
     rgb_warped_zeros = np.dstack((image_zeros, image_zeros, image_zeros))
@@ -291,12 +295,13 @@ def draw_lane(image, previous_centroids, previous_left_fit, previous_right_fit, 
     cv2.fillPoly(rgb_warped_zeros, np.int32([points]), (0, 255, 0))
     rgb_warped_zeros = perspective_transform(rgb_warped_zeros, dst_points, src_points)
     cv2.putText(rgb_warped_zeros, 'radius of curvature:' + str(avg_curve_rad) + 'm', (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+    cv2.putText(rgb_warped_zeros, 'distance to center of lane:' + str(lane_position) + 'm', (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
     return rgb_warped_zeros, window_centroids, left_fit, right_fit, avg_curve_rad
 
 warped = []
 original = []
 
-'''
+
 for i in range(len((test_image_names))):
     warped.append(cv2.imread('./warped/' + test_image_names[i]))
     original.append(cv2.imread('./test_images/' + test_image_names[i]))
@@ -307,7 +312,7 @@ for i, image in enumerate(warped):
     lane, _, _, _, _ = draw_lane(image, null_array, null_array, null_array, 0)
     composed = cv2.addWeighted(original[i], 1, lane, .5, 1)
     cv2.imwrite('./composed/' + test_image_names[i], composed)
-'''
+
 
 class MyVideoProcessor(object):
     def __init__(self):
