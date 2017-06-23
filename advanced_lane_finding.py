@@ -65,6 +65,18 @@ def l_threshold(image, min, max):
     binary[(L >= min) & (L <= max)] = 1
     return binary
 
+def r_threshold(image, rmin, rmax):
+    R = image[:,:,0]
+    binary = np.zeros_like(R)
+    binary[((R >= rmin) & (R <= rmax))] = 1
+    return binary
+
+def blue_threshold(image, bmax):
+    B = image[:,:,2]
+    binary = np.zeros_like(B)
+    binary[(B <= bmax)] = 1
+    return binary
+
 def b_threshold(image, min, max):
     Lab = cv2.cvtColor(image, cv2.COLOR_RGB2Lab)
     b = Lab[:,:,2]
@@ -79,12 +91,14 @@ def g_threshold(image, min, max):
     return binary
 
 def threshold(image):
-#    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    l_thresh = l_threshold(image, 210, 255)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    l_thresh = l_threshold(image, 200, 255)
     b_thresh = b_threshold(image, 144, 255)
-    g_thresh = g_threshold(image, 210, 255)
+    g_thresh = g_threshold(image, 200, 255)
+    r_thresh = r_threshold(image, 220, 255)
+    blue_thresh = blue_threshold(image, 165)
     combined = np.zeros_like(image)
-    combined[(l_thresh == 1) | (b_thresh == 1) | (g_thresh == 1)] = 252
+    combined[(l_thresh == 1) & (blue_thresh == 1) | (b_thresh == 1) | (g_thresh == 1) | (r_thresh == 1) & (blue_thresh == 1)] = 252
     ret, combined = cv2.threshold(combined, 250, 255, cv2.THRESH_BINARY)
     return combined
 
@@ -142,7 +156,8 @@ def find_window_centroids(warped, window_width, window_height, margin, previous_
     nonzero = warped.nonzero()
     nonzero_y = np.array(nonzero[0])
     nonzero_x = np.array(nonzero[1])
-
+	
+	# initialize storage arrays
     left_lane_cent_x = []
     right_lane_cent_x = []
     left_lane_inds = []
@@ -283,8 +298,10 @@ for i in range(len((test_image_names))):
     warped.append(cv2.imread('./warped/' + test_image_names[i]))
     original.append(cv2.imread('./test_images/' + test_image_names[i]))
 
+null_array = np.array([])
+
 for i, image in enumerate(warped):
-    lane = draw_lane(image)
+    lane, _, _, _, _ = draw_lane(image, null_array, null_array, null_array, 0)
     composed = cv2.addWeighted(original[i], 1, lane, .5, 1)
     cv2.imwrite('./composed/' + test_image_names[i], composed)
 
@@ -312,13 +329,13 @@ video_processor_1, video_processor_2, video_processor_3 = MyVideoProcessor(), My
 
 from moviepy.editor import VideoFileClip
 
-
+'''
 project_video_output = './output_images/project_video_output.mp4'
 clip1 = VideoFileClip('project_video.mp4')
 pv_clip = clip1.fl_image(video_processor_1.pipeline_function)
 pv_clip.write_videofile(project_video_output, audio=False)
 
-'''
+
 project_video_output = './output_images/challenge_video_output.mp4'
 clip1 = VideoFileClip('challenge_video.mp4')
 pv_clip = clip1.fl_image(video_processor_2.pipeline_function)
