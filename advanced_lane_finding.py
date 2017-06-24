@@ -106,7 +106,7 @@ def threshold(image):
 thresholded_images = []
 	
 for image in undistorted_images:
-	thresholded_images.append(threshold(image))
+	thresholded_images.append(threshold(cv2.cvtColor(image, cv2.COLOR_BGR2RGB)))
 
 # save the thresholded test images
 for index, image in enumerate(thresholded_images):
@@ -127,7 +127,7 @@ def perspective_transform(img, src_points, dst_points):
     transformed = cv2.warpPerspective(img, M, img_size, flags=cv2.INTER_LINEAR)
     return transformed
 
-'''
+
 transformed_images = []
 
 # apply perspective transform to thresholded test images
@@ -137,7 +137,7 @@ for image in thresholded_images:
 # save 'warped' images
 for i in range(len((test_image_names))):
     cv2.imwrite('./warped/' + test_image_names[i], transformed_images[i])
-'''
+
 
 margin = 100 # How much to slide left and right for searching
 window_width = 40
@@ -337,13 +337,13 @@ video_processor_1, video_processor_2, video_processor_3 = MyVideoProcessor(), My
 
 from moviepy.editor import VideoFileClip
 
-
+'''
 project_video_output = './output_images/project_video_output.mp4'
 clip1 = VideoFileClip('project_video.mp4')
 pv_clip = clip1.fl_image(video_processor_1.pipeline_function)
 pv_clip.write_videofile(project_video_output, audio=False)
 
-'''
+
 project_video_output = './output_images/challenge_video_output.mp4'
 clip1 = VideoFileClip('challenge_video.mp4')
 pv_clip = clip1.fl_image(video_processor_2.pipeline_function)
