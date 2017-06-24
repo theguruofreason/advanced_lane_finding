@@ -337,13 +337,13 @@ video_processor_1, video_processor_2, video_processor_3 = MyVideoProcessor(), My
 
 from moviepy.editor import VideoFileClip
 
-'''
+
 project_video_output = './output_images/project_video_output.mp4'
 clip1 = VideoFileClip('project_video.mp4')
 pv_clip = clip1.fl_image(video_processor_1.pipeline_function)
 pv_clip.write_videofile(project_video_output, audio=False)
 
-
+'''
 project_video_output = './output_images/challenge_video_output.mp4'
 clip1 = VideoFileClip('challenge_video.mp4')
 pv_clip = clip1.fl_image(video_processor_2.pipeline_function)
